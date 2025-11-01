@@ -1,0 +1,22 @@
+# Content Security Policy for Tana Playground
+# Prevents XSS and restricts what code can do
+
+/*
+  # Only allow scripts from our domain and Monaco CDN
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src https://unpkg.com; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
+
+  # Prevent clickjacking
+  X-Frame-Options: SAMEORIGIN
+
+  # Prevent MIME type sniffing
+  X-Content-Type-Options: nosniff
+
+  # Enable XSS protection
+  X-XSS-Protection: 1; mode=block
+
+  # Referrer policy
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/sandbox
+  # Stricter CSP for sandbox page - no external resources
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; frame-ancestors 'self'

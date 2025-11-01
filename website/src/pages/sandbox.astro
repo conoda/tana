@@ -1,0 +1,456 @@
+---
+// Sandboxed execution environment (linkhash style)
+// This runs in an isolated iframe with restricted permissions
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tana Sandbox</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      background: transparent;
+    }
+    #output {
+      padding: 16px;
+      white-space: pre-wrap;
+    }
+    .error {
+      color: #dc2626;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+    .log {
+      color: #1e1e1e;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="output"></div>
+
+  <script is:inline type="module">
+    // Import TypeScript compiler
+    const script = document.createElement('script');
+    script.src = '/js/typescript.js';
+    script.onload = () => {
+      // Signal that sandbox is ready
+      window.parent.postMessage({ type: 'sandboxReady' }, '*');
+    };
+    document.head.appendChild(script);
+
+    // Domain whitelist for fetch
+    const ALLOWED_DOMAINS = [
+      'pokeapi.co',           // Testing until Tana infra is ready
+      'tana.dev',             // Tana domains
+      'api.tana.dev',
+      'blockchain.tana.dev',
+      'localhost',            // Local development
+      '127.0.0.1'
+    ];
+
+    // Store original fetch before we delete it
+    const originalFetch = globalThis.fetch;
+
+    // FIRST: Ensure standard JavaScript globals are available BEFORE doing anything else
+    // Preserve these explicitly in case strict mode or sandboxing affects them
+    const _parseInt = parseInt;
+    const _parseFloat = parseFloat;
+    const _isNaN = isNaN;
+    const _isFinite = isFinite;
+    const _String = String;
+    const _Number = Number;
+    const _Boolean = Boolean;
+    const _Array = Array;
+    const _Object = Object;
+    const _Date = Date;
+    const _Math = Math;
+    const _JSON = JSON;
+    const _RegExp = RegExp;
+    const _Error = Error;
+    const _Promise = Promise;
+    const _Map = Map;
+    const _Set = Set;
+
+    // Whitelisted fetch implementation
+    function whitelistedFetch(url, options) {
+      // Parse the URL
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url, window.location.href);
+      } catch (e) {
+        return _Promise.reject(new _Error(`Invalid URL: ${url}`));
+      }
+
+      // Check if domain is whitelisted
+      const hostname = parsedUrl.hostname;
+      const isAllowed = ALLOWED_DOMAINS.some(domain => {
+        return hostname === domain || hostname.endsWith('.' + domain);
+      });
+
+      if (!isAllowed) {
+        return _Promise.reject(new _Error(
+          `fetch blocked: domain "${hostname}" not in whitelist. ` +
+          `Allowed domains: ${ALLOWED_DOMAINS.join(', ')}`
+        ));
+      }
+
+      // Use original fetch for whitelisted domains
+      return originalFetch(url, options);
+    }
+
+    // Create isolated tana modules
+    const tanaModules = {
+      'tana:core': {
+        console: {
+          log(...args) {
+            const msg = args.map(v => {
+              if (typeof v === 'object') {
+                try { return JSON.stringify(v, null, 2); }
+                catch { return String(v); }
+              }
+              return String(v);
+            }).join(' ');
+
+            const div = document.createElement('div');
+            div.className = 'log';
+            div.textContent = msg;
+            document.getElementById('output').appendChild(div);
+          },
+          error(...args) {
+            const msg = args.map(v => {
+              if (typeof v === 'object') {
+                try { return JSON.stringify(v, null, 2); }
+                catch { return String(v); }
+              }
+              return String(v);
+            }).join(' ');
+
+            const div = document.createElement('div');
+            div.className = 'error';
+            div.textContent = '[ERROR] ' + msg;
+            document.getElementById('output').appendChild(div);
+          }
+        },
+        version: {
+          tana: '0.1.0',
+          deno_core: '0.338.0',
+          v8: '134.5.0'
+        }
+      },
+      'tana:utils': {
+        fetch: whitelistedFetch
+      },
+      'tana:data': {
+        data: {
+          // Storage limits
+          MAX_KEY_SIZE: 256,
+          MAX_VALUE_SIZE: 10240,  // 10 KB
+          MAX_TOTAL_SIZE: 102400, // 100 KB
+          MAX_KEYS: 1000,
+
+          // Staging buffer for uncommitted changes
+          _staging: new Map(),
+
+          // Helper: Get current storage size
+          _getStorageSize() {
+            let size = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('tana:data:')) {
+                const value = localStorage.getItem(key);
+                size += key.length + (value?.length || 0);
+              }
+            }
+            return size;
+          },
+
+          // Helper: Serialize value (supports strings and objects)
+          _serialize(value) {
+            if (typeof value === 'string') {
+              return value;
+            }
+            return JSON.stringify(value);
+          },
+
+          // Helper: Deserialize value (returns original type)
+          _deserialize(value) {
+            if (value === null) return null;
+            try {
+              return JSON.parse(value);
+            } catch {
+              return value; // Return as string if not JSON
+            }
+          },
+
+          async set(key, value) {
+            // Validate key
+            if (typeof key !== 'string') {
+              throw new Error('Key must be a string');
+            }
+            if (key.length > this.MAX_KEY_SIZE) {
+              throw new Error(`Key too large: ${key.length} bytes (max ${this.MAX_KEY_SIZE})`);
+            }
+
+            // Serialize and validate value
+            const serialized = this._serialize(value);
+            if (serialized.length > this.MAX_VALUE_SIZE) {
+              throw new Error(`Value too large: ${serialized.length} bytes (max ${this.MAX_VALUE_SIZE})`);
+            }
+
+            // Stage the change
+            this._staging.set(key, serialized);
+          },
+
+          async get(key) {
+            // Check staging first
+            if (this._staging.has(key)) {
+              return this._deserialize(this._staging.get(key));
+            }
+
+            // Then check localStorage
+            const value = localStorage.getItem(`tana:data:${key}`);
+            return this._deserialize(value);
+          },
+
+          async delete(key) {
+            // Mark for deletion in staging
+            this._staging.set(key, null);
+          },
+
+          async has(key) {
+            // Check staging first
+            if (this._staging.has(key)) {
+              return this._staging.get(key) !== null;
+            }
+
+            // Then check localStorage
+            return localStorage.getItem(`tana:data:${key}`) !== null;
+          },
+
+          async keys(pattern) {
+            const allKeys = new Set();
+
+            // Get keys from localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('tana:data:')) {
+                const dataKey = key.replace('tana:data:', '');
+                allKeys.add(dataKey);
+              }
+            }
+
+            // Merge with staging (add new keys, remove deleted ones)
+            for (const [key, value] of this._staging) {
+              if (value === null) {
+                allKeys.delete(key);
+              } else {
+                allKeys.add(key);
+              }
+            }
+
+            const keysArray = Array.from(allKeys);
+
+            // Apply pattern filter if provided
+            if (pattern) {
+              const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+              return keysArray.filter(k => regex.test(k));
+            }
+
+            return keysArray;
+          },
+
+          async entries() {
+            const result = {};
+            const allKeys = await this.keys();
+
+            for (const key of allKeys) {
+              result[key] = await this.get(key);
+            }
+
+            return result;
+          },
+
+          async clear() {
+            // Clear all tana:data from localStorage
+            const toRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('tana:data:')) {
+                toRemove.push(key);
+              }
+            }
+            toRemove.forEach(key => localStorage.removeItem(key));
+
+            // Clear staging
+            this._staging.clear();
+          },
+
+          async commit() {
+            // Calculate total size after commit
+            let totalSize = 0;
+            let totalKeys = 0;
+
+            // Count existing non-deleted keys
+            const existingKeys = new Set();
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('tana:data:')) {
+                const dataKey = key.replace('tana:data:', '');
+                // Skip if marked for deletion in staging
+                if (!this._staging.has(dataKey) || this._staging.get(dataKey) !== null) {
+                  const value = localStorage.getItem(key);
+                  totalSize += key.length + (value?.length || 0);
+                  totalKeys++;
+                  existingKeys.add(dataKey);
+                }
+              }
+            }
+
+            // Add staged changes
+            for (const [key, value] of this._staging) {
+              if (value !== null) { // Not a deletion
+                const fullKey = `tana:data:${key}`;
+                totalSize += fullKey.length + value.length;
+                if (!existingKeys.has(key)) {
+                  totalKeys++;
+                }
+              }
+            }
+
+            // Validate limits
+            if (totalSize > this.MAX_TOTAL_SIZE) {
+              throw new Error(
+                `Storage limit exceeded: ${totalSize} bytes (max ${this.MAX_TOTAL_SIZE})`
+              );
+            }
+
+            if (totalKeys > this.MAX_KEYS) {
+              throw new Error(
+                `Too many keys: ${totalKeys} (max ${this.MAX_KEYS})`
+              );
+            }
+
+            // Commit all staged changes
+            for (const [key, value] of this._staging) {
+              const fullKey = `tana:data:${key}`;
+              if (value === null) {
+                localStorage.removeItem(fullKey);
+              } else {
+                localStorage.setItem(fullKey, value);
+              }
+            }
+
+            // Clear staging
+            this._staging.clear();
+          }
+        }
+      }
+    };
+
+    // Import shim
+    globalThis.__tanaImport = function(spec) {
+      const mod = tanaModules[spec];
+      if (!mod) throw new Error(`Unknown module: ${spec}`);
+      return mod;
+    };
+
+    // SECURITY: Remove dangerous globals
+    // Note: fetch is saved above for whitelisted use, then deleted here
+    delete globalThis.fetch;
+    delete globalThis.XMLHttpRequest;
+    delete globalThis.WebSocket;
+    delete globalThis.Worker;
+    delete globalThis.SharedWorker;
+    delete globalThis.ServiceWorker;
+    delete globalThis.indexedDB;
+    delete globalThis.localStorage;
+    delete globalThis.sessionStorage;
+    delete globalThis.navigator;
+
+    // Restore standard JavaScript globals (using the copies we made earlier)
+    globalThis.parseInt = _parseInt;
+    globalThis.parseFloat = _parseFloat;
+    globalThis.isNaN = _isNaN;
+    globalThis.isFinite = _isFinite;
+    globalThis.String = _String;
+    globalThis.Number = _Number;
+    globalThis.Boolean = _Boolean;
+    globalThis.Array = _Array;
+    globalThis.Object = _Object;
+    globalThis.Date = _Date;
+    globalThis.Math = _Math;
+    globalThis.JSON = _JSON;
+    globalThis.RegExp = _RegExp;
+    globalThis.Error = _Error;
+    globalThis.Promise = _Promise;
+    globalThis.Map = _Map;
+    globalThis.Set = _Set;
+
+    // Listen for code to execute
+    window.addEventListener('message', function(event) {
+      if (event.data.type === 'execute') {
+        const outputEl = document.getElementById('output');
+        outputEl.innerHTML = ''; // Clear previous output
+
+        try {
+          const code = event.data.code;
+
+          // Rewrite import statements
+          const rewrittenCode = code
+            .split('\n')
+            .map(line => {
+              const match = line.match(/^\s*import\s+\{([^}]+)\}\s+from\s+["'](tana:[^"']+)["'];?\s*$/);
+              if (!match) return line;
+              const names = match[1].trim();
+              const spec = match[2].trim();
+              return `const {${names}} = __tanaImport('${spec}');`;
+            })
+            .join('\n');
+
+          // Transpile TypeScript to JavaScript
+          const result = ts.transpileModule(rewrittenCode, {
+            compilerOptions: {
+              target: ts.ScriptTarget.ES2020,
+              module: ts.ModuleKind.ESNext
+            }
+          });
+
+          // Wrap in async IIFE to support top-level await
+          const wrappedCode = `(async function() {
+            'use strict';
+            ${result.outputText}
+          })();`;
+
+          // Execute in isolated scope
+          eval(wrappedCode);
+
+          // Send success message
+          window.parent.postMessage({
+            type: 'executionComplete',
+            success: true
+          }, '*');
+
+        } catch (error) {
+          const div = document.createElement('div');
+          div.className = 'error';
+          div.textContent = `Error: ${error.message}\n${error.stack || ''}`;
+          outputEl.appendChild(div);
+
+          window.parent.postMessage({
+            type: 'executionComplete',
+            success: false,
+            error: error.message
+          }, '*');
+        }
+      }
+    });
+  </script>
+</body>
+</html>

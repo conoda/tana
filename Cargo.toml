@@ -1,16 +1,23 @@
 [package]
-name = "runjs"
+name = "tana-runtime"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-deno_ast = { version = "0.44.0", features = ["transpiling"] }
-deno_core = "0.338.0"
-deno_error = "0.5.6"
-reqwest = "0.12"
-tokio = { version = "1.43", features = ["full"] }
-
-[build-dependencies]
 deno_core = "0.338"
+deno_error = "0.5.7"
+serde_json = "1.0"
+wasm-bindgen = "0.2"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+serde = { version = "1.0", features = ["derive"] }
+regex = "1.10"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+wee_alloc = "0.4"

@@ -1,0 +1,8 @@
+procs:
+  web:
+    cwd: ./playground
+    shell: "npm i && npm run dev"
+
+  redis:
+    cwd: .
+    cmd: ["docker", "logs", "-f", "redis"]
