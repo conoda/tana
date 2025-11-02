@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro build && cp public/js/typescript.js dist/_astro/typescript.js",
     "preview": "astro preview",
     "astro": "astro",
     "setup": "./setup.sh"
