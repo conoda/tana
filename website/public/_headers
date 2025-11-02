@@ -18,5 +18,5 @@
   Referrer-Policy: strict-origin-when-cross-origin
 
 /sandbox
-  # Stricter CSP for sandbox page - no external resources except whitelisted fetch domains
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src https://pokeapi.co https://*.tana.dev https://tana.network https://*.pages.dev; frame-ancestors 'self'
+  # Stricter CSP for sandbox page - allow TypeScript from unpkg CDN
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src https://pokeapi.co https://*.tana.dev https://tana.network https://*.pages.dev; frame-ancestors 'self'
