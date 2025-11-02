@@ -43,20 +43,21 @@ export const prerender = true;
     loadingDiv.textContent = 'Loading Tana runtime...';
     output.appendChild(loadingDiv);
 
-    // Import TypeScript compiler from CDN (unpkg is faster and more reliable than self-hosting 8.5MB file)
+    // Import TypeScript compiler
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/typescript@5.6.3/lib/typescript.js';
+    script.src = '/js/typescript.js';
     script.onload = () => {
       // Clear loading message
       output.innerHTML = '';
       // Signal that sandbox is ready
       window.parent.postMessage({ type: 'sandboxReady' }, '*');
     };
-    script.onerror = () => {
+    script.onerror = (err) => {
       const errorDiv = document.createElement('div');
       errorDiv.className = 'error';
-      errorDiv.textContent = 'Failed to load TypeScript compiler from CDN';
+      errorDiv.textContent = 'Failed to load TypeScript compiler: ' + (err.message || 'Unknown error');
       output.appendChild(errorDiv);
+      console.error('TypeScript load error:', err);
     };
     document.head.appendChild(script);
 
