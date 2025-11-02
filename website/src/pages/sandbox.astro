@@ -43,9 +43,10 @@ export const prerender = true;
     loadingDiv.textContent = 'Loading Tana runtime...';
     output.appendChild(loadingDiv);
 
-    // Import TypeScript compiler
+    // Import TypeScript compiler (using .gz since Cloudflare only uploads compressed version)
     const script = document.createElement('script');
-    script.src = '/_astro/typescript.js';
+    script.src = '/js/typescript.js.gz';
+    script.type = 'text/javascript';
     script.onload = () => {
       // Clear loading message
       output.innerHTML = '';
