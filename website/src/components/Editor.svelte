@@ -1,13 +1,12 @@
 <script>
   import { onMount } from 'svelte';
   import { defaultCode } from '../defaultCode';
-  import { defaultCodeLedger } from '../defaultCode_ledger';
   import StateViewer from './StateViewer.svelte';
 
   let editorContainer;
   let outputContainer;
   let resizerElem;
-  let sandboxIframe;
+  let stateViewer;
   let editor;
   let isReady = false;
   let editorReady = false;
@@ -51,15 +50,12 @@
 
   // Auto-execute code (linkhash style - 600ms debounce)
   function executeCode(code) {
-    if (!isReady || !sandboxIframe) {
+    if (!isReady || !stateViewer) {
       return;
     }
 
-    // Send code to sandboxed iframe for execution
-    sandboxIframe.contentWindow.postMessage({
-      type: 'execute',
-      code: code
-    }, '*');
+    // Send code to StateViewer which will forward to the sandbox iframe
+    stateViewer.executeCode(code);
   }
 
   const debouncedExecute = debounce(executeCode, 600);
@@ -71,8 +67,7 @@
     if (hash) {
       return decodeFromUrl(hash);
     }
-    // Use ledger example by default to show blockchain integration
-    return defaultCodeLedger;
+    return defaultCode;
   }
 
   const initialCode = getInitialCode();
@@ -197,70 +192,6 @@
               };
             }`,
             'ts:filename/tana-data.d.ts'
-          );
-
-          // Add tana:ledger type definitions to Monaco
-          monaco.languages.typescript.typescriptDefaults.addExtraLib(
-            `declare module 'tana:ledger' {
-              export interface User {
-                id: string;
-                publicKey: string;
-                username: string;
-                displayName: string;
-                bio: string | null;
-                avatarData: string | null;
-                avatarHash: string | null;
-                landingPageId: string | null;
-                stateHash: string;
-                createdAt: string;
-                updatedAt: string;
-              }
-
-              export interface Balance {
-                id: string;
-                ownerId: string;
-                ownerType: 'user' | 'team';
-                currencyCode: string;
-                amount: string;
-                updatedAt: string;
-              }
-
-              export interface Transaction {
-                id: string;
-                fromId: string;
-                toId: string;
-                amount: string;
-                currencyCode: string;
-                type: string;
-                status: string;
-                metadata: any;
-                createdAt: string;
-              }
-
-              export interface Currency {
-                code: string;
-                name: string;
-                symbol: string;
-                decimals: number;
-                type: 'fiat' | 'crypto';
-              }
-
-              export const ledger: {
-                /** Get all users from the blockchain */
-                getUsers(): Promise<User[]>;
-                /** Get a specific user by ID */
-                getUser(id: string): Promise<User>;
-                /** Get all balances for a specific user */
-                getUserBalances(userId: string): Promise<Balance[]>;
-                /** Get all balances in the system */
-                getBalances(): Promise<Balance[]>;
-                /** Get all transactions */
-                getTransactions(): Promise<Transaction[]>;
-                /** Get all supported currencies */
-                getCurrencies(): Promise<Currency[]>;
-              };
-            }`,
-            'ts:filename/tana-ledger.d.ts'
           );
 
           // Add standard JavaScript globals (explicit declarations for sandboxed environment)
@@ -420,15 +351,7 @@
 
   <!-- Output Panel with State Viewer -->
   <div bind:this={outputContainer} class="output-panel">
-    <StateViewer outputRef={sandboxIframe} />
-    <!-- Hidden sandbox iframe (controlled by StateViewer) -->
-    <iframe
-      bind:this={sandboxIframe}
-      src="/sandbox"
-      sandbox="allow-scripts allow-same-origin"
-      title="Tana Sandbox"
-      style="display: none;"
-    ></iframe>
+    <StateViewer bind:this={stateViewer} />
   </div>
 </div>
 

@@ -2,9 +2,8 @@
   import { onMount } from 'svelte';
   import { ledgerApi } from '../lib/ledgerApi';
 
-  export let outputRef; // Reference to output iframe for results
-
   let activeTab = 'results';
+  let sandboxIframe; // Internal iframe reference
   let blockchainState = null;
   let loading = true;
   let error = null;
@@ -37,6 +36,16 @@
     const interval = setInterval(refreshState, 5000);
     return () => clearInterval(interval);
   });
+
+  // Expose method to execute code in the sandbox
+  export function executeCode(code) {
+    if (sandboxIframe && sandboxIframe.contentWindow) {
+      sandboxIframe.contentWindow.postMessage({
+        type: 'execute',
+        code: code
+      }, '*');
+    }
+  }
 
   function formatAmount(amount) {
     return parseFloat(amount).toFixed(2);
@@ -74,9 +83,8 @@
   <!-- Tab Content -->
   <div class="tab-content">
     {#if activeTab === 'results'}
-      <div class="results-panel">
-        <iframe bind:this={outputRef} src="/sandbox" title="Code Output" />
-      </div>
+      <!-- Results are shown via the iframe positioned absolutely -->
+      <div class="results-panel"></div>
     {:else if loading && !blockchainState}
       <div class="loading-state">
         <div class="spinner"></div>
@@ -244,6 +252,15 @@
       </div>
     {/if}
   </div>
+
+  <!-- Sandbox iframe (always present but only visible in results tab) -->
+  <iframe
+    bind:this={sandboxIframe}
+    src="/sandbox"
+    sandbox="allow-scripts allow-same-origin"
+    title="Tana Sandbox"
+    style="display: {activeTab === 'results' ? 'block' : 'none'}; position: absolute; top: 65px; left: 0; width: 100%; height: calc(100% - 65px); border: none;"
+  ></iframe>
 </div>
 
 <style>
@@ -252,6 +269,7 @@
     flex-direction: column;
     height: 100%;
     background: #fffbe8;
+    position: relative;
   }
 
   .tab-bar {
