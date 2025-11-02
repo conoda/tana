@@ -36,12 +36,27 @@ export const prerender = true;
   <div id="output"></div>
 
   <script is:inline type="module">
+    // Show loading message immediately
+    const output = document.getElementById('output');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'log';
+    loadingDiv.textContent = 'Loading Tana runtime...';
+    output.appendChild(loadingDiv);
+
     // Import TypeScript compiler
     const script = document.createElement('script');
     script.src = '/js/typescript.js';
     script.onload = () => {
+      // Clear loading message
+      output.innerHTML = '';
       // Signal that sandbox is ready
       window.parent.postMessage({ type: 'sandboxReady' }, '*');
+    };
+    script.onerror = () => {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error';
+      errorDiv.textContent = 'Failed to load TypeScript compiler';
+      output.appendChild(errorDiv);
     };
     document.head.appendChild(script);
 
