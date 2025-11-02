@@ -123,6 +123,13 @@ export async function getBalances(ownerId: string, ownerType: 'user' | 'team') {
 }
 
 /**
+ * Get all balances in the system
+ */
+export async function getAllBalances() {
+  return await db.select().from(balances)
+}
+
+/**
  * Set balance (creates if doesn't exist)
  */
 export async function setBalance(input: UpdateBalanceInput) {

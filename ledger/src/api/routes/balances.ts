@@ -9,12 +9,19 @@ import { setBalanceSchema, createCurrencySchema } from '../schemas'
 
 const app = new Hono()
 
-// GET /balances - Get balance for specific owner and currency
+// GET /balances - Get all balances or specific balance if query params provided
 app.get('/', async (c) => {
   const ownerId = c.req.query('ownerId')
   const ownerType = c.req.query('ownerType') as 'user' | 'team'
   const currencyCode = c.req.query('currencyCode')
 
+  // If no query params, return all balances
+  if (!ownerId && !ownerType && !currencyCode) {
+    const balances = await balanceService.getAllBalances()
+    return c.json(balances)
+  }
+
+  // Otherwise, require all three params for specific balance lookup
   if (!ownerId || !ownerType || !currencyCode) {
     return c.json({ error: 'Missing required query parameters: ownerId, ownerType, currencyCode' }, 400)
   }
