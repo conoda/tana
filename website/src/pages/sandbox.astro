@@ -370,6 +370,48 @@ export const prerender = true;
             this._staging.clear();
           }
         }
+      },
+      'tana:ledger': {
+        // Ledger API client for querying blockchain state
+        ledger: {
+          apiUrl: 'http://localhost:8080',
+
+          async getUsers() {
+            const response = await whitelistedFetch(`${this.apiUrl}/users`);
+            if (!response.ok) throw new Error(`Failed to fetch users: ${response.statusText}`);
+            return response.json();
+          },
+
+          async getUser(id) {
+            const response = await whitelistedFetch(`${this.apiUrl}/users/${id}`);
+            if (!response.ok) throw new Error(`Failed to fetch user: ${response.statusText}`);
+            return response.json();
+          },
+
+          async getUserBalances(userId) {
+            const response = await whitelistedFetch(`${this.apiUrl}/users/${userId}/balances`);
+            if (!response.ok) throw new Error(`Failed to fetch balances: ${response.statusText}`);
+            return response.json();
+          },
+
+          async getBalances() {
+            const response = await whitelistedFetch(`${this.apiUrl}/balances`);
+            if (!response.ok) throw new Error(`Failed to fetch balances: ${response.statusText}`);
+            return response.json();
+          },
+
+          async getTransactions() {
+            const response = await whitelistedFetch(`${this.apiUrl}/transactions`);
+            if (!response.ok) throw new Error(`Failed to fetch transactions: ${response.statusText}`);
+            return response.json();
+          },
+
+          async getCurrencies() {
+            const response = await whitelistedFetch(`${this.apiUrl}/balances/currencies`);
+            if (!response.ok) throw new Error(`Failed to fetch currencies: ${response.statusText}`);
+            return response.json();
+          }
+        }
       }
     };
 

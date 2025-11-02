@@ -61,11 +61,14 @@ tana-runtime/                    # Monorepo root
 
 ## 🚀 Quick Start
 
+> **See [QUICKSTART.md](./QUICKSTART.md) for detailed setup instructions**
+
 ### Prerequisites
 
 - [Bun](https://bun.sh) >= 1.0 (for TypeScript services)
 - [Rust](https://rustup.rs) >= 1.70 (for runtime only)
-- [Docker](https://docker.com) (optional, for databases)
+- [Docker](https://docker.com) (for databases)
+- [mprocs](https://github.com/pvolok/mprocs) (optional, for multi-process management)
 
 ### Installation
 
@@ -75,23 +78,34 @@ bun install
 
 # Build Rust runtime
 cd runtime && cargo build --release && cd ..
+
+# Install mprocs (optional but recommended)
+brew install mprocs  # macOS
+cargo install mprocs # or via Cargo
 ```
 
 ### Development
 
+**Option 1: All services with mprocs (Recommended)**
+
 ```bash
-# Start all services with Docker
-docker compose up
+npm run dev  # or ./dev.sh
+```
 
-# Or run services individually:
-bun run dev:ledger      # Account service (port 8080)
-bun run dev:contracts   # Contract executor (port 8081)
-bun run dev:node        # Blockchain node (port 9933)
-bun run dev:website     # Website (port 4322)
-bun run dev:runtime     # Rust runtime (CLI)
+This starts PostgreSQL, Redis, Ledger, and Website in one terminal with easy process management.
 
-# Or run all TypeScript services at once
-bun run dev
+**Option 2: Individual services**
+
+```bash
+# Start databases
+npm run db:up
+
+# Start services individually
+npm run dev:ledger      # Account service (port 8080)
+npm run dev:contracts   # Contract executor (port 8081)
+npm run dev:node        # Blockchain node (port 9933)
+npm run dev:website     # Website (port 4322)
+npm run dev:runtime     # Rust runtime (CLI)
 ```
 
 ### Testing
