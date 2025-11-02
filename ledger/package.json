@@ -6,12 +6,15 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "dev:node": "tsx watch src/index.ts",
     "start": "bun run src/index.ts",
+    "start:node": "node --loader tsx src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "test": "bun test",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push:pg",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.2.0",
