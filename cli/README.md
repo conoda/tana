@@ -1,95 +1,28 @@
-# Tana CLI
+# tana-cli
 
-Command-line interface for interacting with the Tana blockchain.
+this will be the server application that spins up a tana node. it will enable all of the functionality listed below
 
-## Installation
+the tana system will be modelled after the linux filesystem
 
-```bash
-# From source
-cd cli
-bun install
-bun link
+if ethereum is a globally distributed state machine, tana is a globally distributed computer system
 
-# Now you can use `tana` command globally
-tana --help
-```
+## blockchain contents
 
-## Commands
+/users - user accounts
+/orgs - organization accounts
+/pages - single page apps, storefronts, etc
+/system - global code, a sort of standard library, can be imported by contracts
+/contracts - user published code that can be executed when sent a transaction, organized by user or org it's published under
+/wiki - global public commons of information on various topics, weather, points of interest, historical facts, etc
 
-```bash
-# Account management
-tana account create              # Create new account
-tana account balance @alice      # Check balance
-tana account info @alice         # Get account details
+## transactions
 
-# Transactions
-tana send @bob 10 USD            # Send money
-tana send --from @alice @bob 5 BTC
+when a user or account submits a transaction to /pending, it must reference what content they are modifying.
 
-# Smart contracts
-tana deploy contract.ts          # Deploy contract
-tana call @contract/counter increment  # Call contract function
-tana inspect @contract/counter   # View contract code & state
 
-# Keys
-tana keys generate               # Generate new keypair
-tana keys list                   # List all keys
-tana keys export @alice          # Export private key
+## name resolution
 
-# Node operations
-tana node start                  # Start local node
-tana node status                 # Check node status
-tana node sync                   # Sync with network
+there needs to be a mechanism that translates friendly name to most current CID. this will be helpful in translating:
 
-# Development
-tana dev init                    # Initialize new project
-tana dev playground              # Open browser playground
-```
-
-## Configuration
-
-```bash
-# Default config location: ~/.tana/config.json
-{
-  "network": "mainnet",
-  "node": "https://node.tana.dev",
-  "ledger": "https://ledger.tana.dev",
-  "contracts": "https://contracts.tana.dev"
-}
-```
-
-## Development
-
-```bash
-# Install dependencies
-bun install
-
-# Run CLI in development
-bun run dev -- account balance @alice
-
-# Build for distribution
-bun run build
-
-# Run tests
-bun test
-```
-
-## Architecture
-
-```
-src/
-├── index.ts              # Main CLI entry point
-├── commands/             # Command implementations
-│   ├── account.ts
-│   ├── send.ts
-│   ├── deploy.ts
-│   ├── keys.ts
-│   └── node.ts
-├── lib/                  # Shared utilities
-│   ├── api.ts           # API client
-│   ├── crypto.ts        # Key management
-│   └── config.ts        # Configuration
-└── utils/               # Helpers
-    ├── logger.ts
-    └── prompts.ts
-```
+-usernames to profile CID
+-domain names to pages
