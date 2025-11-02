@@ -1,6 +1,6 @@
 procs:
   web:
-    cwd: ./playground
+    cwd: ./website
     shell: "npm i && npm run dev"
 
   redis:
