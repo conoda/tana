@@ -1,93 +1,43 @@
-# Playground + Blockchain Integration
+# Playground Developer Visibility
 
-## 🎉 What Was Built
+## 🎯 Purpose
 
-The playground now provides a complete **state → code → results** feedback loop, allowing you to query and interact with the actual blockchain ledger in real-time during development.
+The playground is designed for **end users to write smart contracts** in TypeScript, not for direct blockchain inspection. However, for local development, the playground provides a tabbed state viewer to give **developers** visibility into the blockchain during testing.
 
-## ✨ New Features
+## 🔒 Security Model
 
-### 1. Tabbed State Viewer
+### Smart Contract Sandbox
 
-The right panel now has **5 tabs**:
+Smart contracts run in a heavily sandboxed iframe with **restricted permissions**:
 
-- **Results** - Code execution output (console.log)
-- **Users** - All user accounts on the blockchain
-- **Balances** - All account balances (multi-currency)
-- **Transactions** - Transaction history
-- **Currencies** - Supported currencies (USD, BTC, ETH, etc.)
+✅ **Allowed APIs:**
+- `tana:core` - console.log/error, version info
+- `tana:utils` - whitelisted fetch (specific domains only)
+- `tana:data` - localStorage-based key-value store with size limits
 
-### 2. New `tana:ledger` Module
+❌ **Not Allowed:**
+- Direct blockchain queries (no `tana:ledger` module)
+- Unrestricted network access
+- IndexedDB, localStorage (except via tana:data)
+- navigator, WebSocket, Workers
 
-Smart contracts can now query blockchain state:
+### Developer Visibility (Local Dev Only)
 
-```typescript
-import { ledger } from 'tana:ledger'
+The StateViewer component provides tabs for **local development inspection**:
 
-// Get all users
-const users = await ledger.getUsers()
+- **Results** - Smart contract execution output
+- **Users** - All user accounts (dev visibility)
+- **Balances** - Account balances (dev visibility)
+- **Transactions** - Transaction history (dev visibility)
+- **Currencies** - Supported currencies (dev visibility)
 
-// Get specific user
-const user = await ledger.getUser(userId)
+**Important:** These tabs fetch data from the **parent window context** using `ledgerApi.ts`, NOT from inside the sandboxed smart contract. This means:
 
-// Get user balances
-const balances = await ledger.getUserBalances(userId)
-
-// Get all balances
-const allBalances = await ledger.getBalances()
-
-// Get all transactions
-const transactions = await ledger.getTransactions()
-
-// Get supported currencies
-const currencies = await ledger.getCurrencies()
-```
-
-### 3. Auto-Refreshing State
-
-- State refreshes **every 5 seconds** automatically
-- Manual refresh button in the tab bar
-- Shows last update timestamp
-
-### 4. Full TypeScript Support
-
-Complete IntelliSense for the ledger API with type definitions:
-
-```typescript
-interface User {
-  id: string
-  publicKey: string
-  username: string
-  displayName: string
-  bio: string | null
-  // ... more fields
-}
-
-interface Balance {
-  id: string
-  ownerId: string
-  ownerType: 'user' | 'team'
-  currencyCode: string
-  amount: string
-  updatedAt: string
-}
-
-// ... more types
-```
+1. Smart contracts **cannot** access this data
+2. Only works in local dev (ledger service on localhost:8080)
+3. Production playground won't have access to these endpoints
 
 ## 🏗️ Architecture
-
-### Files Created/Modified
-
-**New Files:**
-- `website/src/lib/ledgerApi.ts` - TypeScript ledger API client
-- `website/src/components/StateViewer.svelte` - Tabbed state viewer component
-- `website/src/defaultCode_ledger.ts` - Example code demonstrating ledger API
-
-**Modified Files:**
-- `website/src/components/Editor.svelte` - Integrated StateViewer, added type definitions
-- `website/src/pages/sandbox.astro` - Added `tana:ledger` module to runtime
-
-### Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -98,13 +48,13 @@ interface Balance {
 │  │  Code Editor  │         │  State Viewer    │   │
 │  │   (Monaco)    │         │                  │   │
 │  │               │         │  [Results] Tab   │   │
-│  │ import {...}  │         │  [Users] Tab     │   │
-│  │ from          │         │  [Balances] Tab  │   │
-│  │ 'tana:ledger' │         │  [Transactions]  │   │
-│  │               │         │  [Currencies]    │   │
-│  │ const users = │         │                  │   │
-│  │ await ledger  │         │  Auto-refresh    │   │
-│  │ .getUsers()   │         │  every 5s        │   │
+│  │ import {...}  │         │  [Users] Tab*    │   │
+│  │ from          │         │  [Balances] Tab* │   │
+│  │ 'tana:core'   │         │  [Transactions]* │   │
+│  │               │         │  [Currencies]*   │   │
+│  │ const data =  │         │                  │   │
+│  │ await data    │         │  * = Dev only    │   │
+│  │ .get('key')   │         │                  │   │
 │  └───────┬───────┘         └────────┬─────────┘   │
 │          │                          │             │
 │          │ Execute                  │ Fetch       │
@@ -112,34 +62,85 @@ interface Balance {
 │  ┌───────────────────────────────────────────┐   │
 │  │     Sandboxed Runtime (iframe)            │   │
 │  │                                            │   │
-│  │  tana:ledger module                        │   │
-│  │  → whitelistedFetch(localhost:8080/...)   │   │
-│  └─────────────────┬─────────────────────────┘   │
-│                    │                              │
-└────────────────────┼──────────────────────────────┘
+│  │  ✅ tana:core (console, version)          │   │
+│  │  ✅ tana:utils (whitelisted fetch)        │   │
+│  │  ✅ tana:data (key-value storage)         │   │
+│  │  ❌ NO blockchain query APIs              │   │
+│  └───────────────────────────────────────────┘   │
+│                                                   │
+└───────────────────────────────────────────────────┘
                      │
-                     │ HTTP Requests
+                     │ (StateViewer tabs only)
                      ▼
           ┌──────────────────────┐
           │   Ledger Service     │
           │   localhost:8080     │
-          │                      │
-          │  GET /users          │
-          │  GET /balances       │
-          │  GET /transactions   │
-          │  GET /currencies     │
-          └──────────┬───────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │   PostgreSQL         │
-          │   (Blockchain State) │
+          │   (Local dev only)   │
           └──────────────────────┘
 ```
 
-## 🧪 Testing the Integration
+## 📝 Available Smart Contract APIs
 
-### 1. Start the Development Environment
+### 1. `tana:core`
+
+```typescript
+import { console, version } from 'tana:core'
+
+console.log('Hello from smart contract')
+console.error('Error message')
+
+console.log('Version:', version.tana)
+```
+
+### 2. `tana:utils` (Whitelisted Fetch)
+
+```typescript
+import { fetch } from 'tana:utils'
+
+// Only whitelisted domains are allowed
+const response = await fetch('https://pokeapi.co/api/v2/pokemon/ditto')
+const data = await response.json()
+console.log(data.name)
+
+// Allowed domains:
+// - pokeapi.co (testing)
+// - *.tana.dev
+// - tana.network
+// - localhost (dev only)
+```
+
+### 3. `tana:data` (Key-Value Storage)
+
+```typescript
+import { data } from 'tana:data'
+
+// Set a value
+await data.set('myKey', 'myValue')
+await data.set('myObject', { foo: 'bar' })
+
+// Get a value
+const value = await data.get('myKey')
+const obj = await data.get('myObject')
+
+// Other operations
+await data.delete('myKey')
+const exists = await data.has('myKey')
+const keys = await data.keys('my*')  // Pattern matching
+const all = await data.entries()
+
+// Commit changes (apply to localStorage)
+await data.commit()
+
+// Limits:
+// - Max key size: 256 bytes
+// - Max value size: 10 KB
+// - Max total size: 100 KB
+// - Max keys: 1000
+```
+
+## 🧪 Testing the Playground
+
+### 1. Start Development Environment
 
 ```bash
 npm run dev
@@ -151,209 +152,65 @@ This starts:
 - Ledger service (port 8080)
 - Website (port 4322)
 
-### 2. Seed Test Data (if empty)
-
-```bash
-# Seed currencies
-curl -X POST http://localhost:8080/balances/currencies/seed
-
-# Create a test user
-curl -X POST http://localhost:8080/users \
-  -H "Content-Type: application/json" \
-  -d '{
-    "publicKey": "test_key_alice",
-    "username": "@alice",
-    "displayName": "Alice Johnson",
-    "bio": "First user on Tana blockchain"
-  }'
-
-# Set a balance
-curl -X POST http://localhost:8080/balances \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ownerId": "USER_ID_HERE",
-    "ownerType": "user",
-    "currencyCode": "USD",
-    "amount": "1000.00"
-  }'
-```
-
-### 3. Open the Playground
+### 2. Open the Playground
 
 Navigate to: http://localhost:4322/playground
 
-The default code will automatically:
-1. Query all users
-2. Display all balances
-3. Show supported currencies
-4. Show detailed info for the first user
+### 3. Write Smart Contracts
 
-### 4. Explore the Tabs
-
-- **Results tab** - See the execution output
-- **Users tab** - Browse all user accounts
-- **Balances tab** - View all balances
-- **Transactions tab** - See transaction history
-- **Currencies tab** - View supported currencies
-
-### 5. Write Your Own Queries
-
-Try modifying the code:
+The default code demonstrates the available APIs:
 
 ```typescript
-import { console } from 'tana:core'
-import { ledger } from 'tana:ledger'
+import { console, version } from 'tana:core'
+import { fetch } from 'tana:utils'
 
-// Find users with specific criteria
-const users = await ledger.getUsers()
-const richUsers = users.filter(user => {
-  // Your logic here
-  return true
-})
+console.log("hello. this is the tana playground.")
+console.log("version:", version)
 
-console.log(`Found ${richUsers.length} rich users`)
-
-// Calculate total supply
-const balances = await ledger.getBalances()
-const usdTotal = balances
-  .filter(b => b.currencyCode === 'USD')
-  .reduce((sum, b) => sum + parseFloat(b.amount), 0)
-
-console.log(`Total USD in system: $${usdTotal.toFixed(2)}`)
+const response = await fetch('https://pokeapi.co/api/v2/pokemon/ditto')
+const pokemon = await response.json()
+console.log('Name:', pokemon.name)
 ```
 
-## 🎯 Benefits for Development
+### 4. View Results
 
-### 1. Immediate Feedback Loop
+- **Results tab** - See console output from your smart contract
+- **Users/Balances/Transactions tabs** - Developer visibility (local dev only)
 
-**Before:** Write code → Deploy → Check logs → Debug
-**Now:** Write code → See results immediately → See state changes in tabs
+## 🔮 Future Smart Contract APIs
 
-### 2. Visual State Inspection
+Planned additions for controlled blockchain access:
 
-No need to manually curl the API or check the database. All state is visible in tabs with auto-refresh.
+- [ ] `tana:block` - Access to current block data
+- [ ] `tana:account` - Read account information (controlled)
+- [ ] `tana:tx` - Submit transactions
+- [ ] `tana:contract` - Inter-contract calls
 
-### 3. Rapid Prototyping
+These will be carefully designed to:
+- Prevent unauthorized data access
+- Ensure deterministic execution
+- Maintain security boundaries
 
-Test smart contract logic against real blockchain data without deploying anything.
+## 🚫 What Changed (Security Fix)
 
-### 4. Debugging
+**Removed in recent commit:**
+- `tana:ledger` module from sandbox (security hole)
+- Direct blockchain query APIs from smart contracts
+- Example code that queried entire blockchain state
 
-See exactly what data contracts are working with. Compare execution results with blockchain state.
+**What this means:**
+- Smart contracts can no longer query all users/balances/transactions
+- Playground is now properly sandboxed for untrusted code
+- Developer visibility still available via StateViewer tabs (local dev only)
+- Production deployment will be secure
 
-### 5. Learning
+## 📚 For Developers
 
-New developers can explore the blockchain state and experiment with queries interactively.
+If you need to test smart contracts with specific blockchain state:
 
-## 🔮 Future Enhancements
+1. Use the ledger service API directly to set up test data
+2. View the state in the StateViewer tabs
+3. Write smart contracts that use the controlled APIs
+4. Test deterministic execution
 
-- [ ] Add "Block Explorer" tab showing block history
-- [ ] Add ability to **submit** transactions from playground
-- [ ] Add network stats (block height, TPS, etc.)
-- [ ] Add "Contract State" tab showing deployed contracts
-- [ ] Add diff view showing state changes after execution
-- [ ] Add time-travel debugging (view state at specific block)
-- [ ] Add GraphQL query builder for complex queries
-- [ ] Add ability to impersonate users for testing
-
-## 📊 Usage Examples
-
-### Example 1: User Directory
-
-```typescript
-import { console } from 'tana:core'
-import { ledger } from 'tana:ledger'
-
-const users = await ledger.getUsers()
-
-console.log('👥 User Directory')
-console.log('================')
-
-for (const user of users) {
-  const balances = await ledger.getUserBalances(user.id)
-  const totalUSD = balances
-    .filter(b => b.currencyCode === 'USD')
-    .reduce((sum, b) => sum + parseFloat(b.amount), 0)
-
-  console.log(`${user.username} - $${totalUSD.toFixed(2)} USD`)
-}
-```
-
-### Example 2: Currency Stats
-
-```typescript
-import { console } from 'tana:core'
-import { ledger } from 'tana:ledger'
-
-const balances = await ledger.getBalances()
-const currencies = await ledger.getCurrencies()
-
-for (const currency of currencies) {
-  const currencyBalances = balances.filter(
-    b => b.currencyCode === currency.code
-  )
-
-  const total = currencyBalances.reduce(
-    (sum, b) => sum + parseFloat(b.amount),
-    0
-  )
-
-  const holders = new Set(currencyBalances.map(b => b.ownerId)).size
-
-  console.log(`${currency.symbol} ${currency.code}`)
-  console.log(`  Total Supply: ${total.toFixed(currency.decimals)}`)
-  console.log(`  Holders: ${holders}`)
-  console.log('')
-}
-```
-
-### Example 3: Rich List
-
-```typescript
-import { console } from 'tana:core'
-import { ledger } from 'tana:ledger'
-
-const users = await ledger.getUsers()
-const balances = await ledger.getBalances()
-
-// Calculate net worth for each user
-const netWorth = users.map(user => {
-  const userBalances = balances.filter(b => b.ownerId === user.id)
-  const totalUSD = userBalances
-    .filter(b => b.currencyCode === 'USD')
-    .reduce((sum, b) => sum + parseFloat(b.amount), 0)
-
-  return { user, totalUSD }
-})
-
-// Sort by richest first
-netWorth.sort((a, b) => b.totalUSD - a.totalUSD)
-
-console.log('💎 Rich List (Top 10)')
-console.log('====================')
-
-netWorth.slice(0, 10).forEach((item, i) => {
-  console.log(`${i+1}. ${item.user.username} - $${item.totalUSD.toFixed(2)}`)
-})
-```
-
-## 🔒 Security
-
-The playground runs in a sandboxed iframe with restricted permissions:
-
-- ✅ Can only fetch from whitelisted domains (including localhost:8080)
-- ✅ No access to dangerous APIs (indexedDB, localStorage, navigator, etc.)
-- ✅ Code executes in isolation from the main page
-- ✅ Read-only access to blockchain state (no mutations from playground yet)
-
-## 🚀 Next Steps
-
-Now that you have visibility into the blockchain state, you can:
-
-1. **Test smart contract logic** with real data
-2. **Debug issues** by inspecting state
-3. **Prototype features** rapidly
-4. **Learn the API** interactively
-5. **Develop the protocol** with immediate feedback
-
-The playground is now a powerful development tool for building and testing the Tana blockchain! 🎉
+The playground is a **smart contract development environment**, not a blockchain explorer. For blockchain inspection, use dedicated tools or the StateViewer tabs during local development.
