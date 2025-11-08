@@ -11,9 +11,9 @@ import { transferBalance, getBalance } from '../balances'
 export interface CreateTransactionInput {
   from: string // User or Team ID
   to: string // User or Team ID
-  amount: string
-  currencyCode: string
-  type: 'transfer' | 'deposit' | 'withdraw' | 'contract_call'
+  amount?: string
+  currencyCode?: string
+  type: 'transfer' | 'deposit' | 'withdraw' | 'contract_call' | 'user_creation' | 'contract_deployment'
   signature: string
   contractId?: string
   contractInput?: Record<string, any>
@@ -33,8 +33,8 @@ export async function createTransaction(input: CreateTransactionInput) {
     .values({
       from: input.from,
       to: input.to,
-      amount: input.amount,
-      currencyCode: input.currencyCode.toUpperCase(),
+      amount: input.amount || null,
+      currencyCode: input.currencyCode ? input.currencyCode.toUpperCase() : null,
       type: input.type,
       signature: input.signature,
       contractId: input.contractId,
@@ -126,7 +126,16 @@ export async function confirmTransaction(input: ConfirmTransactionInput) {
  * Validate a transaction before submission
  */
 export async function validateTransaction(input: CreateTransactionInput): Promise<{ valid: boolean; error?: string }> {
-  // Check if sender has sufficient balance
+  // Skip balance check for non-monetary transactions
+  if (input.type === 'user_creation' || input.type === 'contract_deployment' || input.type === 'contract_call') {
+    return { valid: true }
+  }
+
+  // Check if sender has sufficient balance for monetary transactions
+  if (!input.amount || !input.currencyCode) {
+    return { valid: false, error: 'Amount and currency are required for transfer transactions' }
+  }
+
   const balance = await getBalance({
     ownerId: input.from,
     ownerType: 'user', // TODO: Handle teams

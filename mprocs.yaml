@@ -12,36 +12,33 @@ procs:
 
   # Core Services
   ledger:
-    cwd: ./ledger
-    shell: "bun run dev"
+    cwd: .
+    shell: "bun cli/main.ts start"
     autostart: true
-    env:
-      DATABASE_URL: "postgres://tana:tana_dev_password@localhost:5432/tana"
-      PORT: "8080"
-      NODE_ENV: "development"
 
-  contracts:
-    cwd: ./contracts
-    shell: "bun run dev"
-    autostart: false
-    env:
-      PORT: "8081"
-      REDIS_URL: "redis://localhost:6379"
-      DATABASE_URL: "postgres://tana:tana_dev_password@localhost:5432/tana"
-
-  node:
-    cwd: ./node
-    shell: "bun run dev"
-    autostart: false
-    env:
-      PORT: "9933"
-      P2P_PORT: "30333"
-      DATABASE_URL: "postgres://tana:tana_dev_password@localhost:5432/tana"
-
-  # Website
-  web:
-    cwd: ./website
+  # Websites
+  landing:
+    cwd: ./websites/landing
     shell: "npm i && npm run dev"
     autostart: true
     env:
       NODE_ENV: "development"
+
+  playground:
+    cwd: ./websites/playground
+    shell: "npm i && npm run dev"
+    autostart: true
+    env:
+      NODE_ENV: "development"
+
+  docs:
+    cwd: ./websites/docs
+    shell: "npm i && npm run dev"
+    autostart: true
+    env:
+      NODE_ENV: "development"
+
+  # Run any pending transactions
+  block:
+    shell: "npm run pending"
+    autostart: true

@@ -729,7 +729,7 @@ async fn main() {
     let v8_version = env!("V8_VERSION");
 
     // this shim gives us a "fake" module system in JS:
-    //   import { console } from "tana:core"
+    //   import { console } from "tana/core"
     // will become a lookup into a JS map.
     let bootstrap_globals = format!(
         r#"
@@ -743,7 +743,7 @@ async fn main() {
         const tanaModules = Object.create(null);
 
         // core module - browser-like console API
-        tanaModules["tana:core"] = {{
+        tanaModules["tana/core"] = {{
             console: {{
                 log(...args) {{
                     if (globalThis.__tanaCore) {{
@@ -778,7 +778,7 @@ async fn main() {
         }};
 
         // utils module - whitelisted fetch API
-        tanaModules["tana:utils"] = {{
+        tanaModules["tana/utils"] = {{
             async fetch(url) {{
                 if (!globalThis.__tanaCore) {{
                     throw new Error('Tana runtime not initialized');
@@ -795,7 +795,7 @@ async fn main() {
         }};
 
         // data module - persistent KV storage
-        tanaModules["tana:data"] = {{
+        tanaModules["tana/data"] = {{
             data: {{
                 MAX_KEY_SIZE: 256,
                 MAX_VALUE_SIZE: 10240,
@@ -892,7 +892,7 @@ async fn main() {
         }};
 
         // block module - block context and state queries
-        tanaModules["tana:block"] = {{
+        tanaModules["tana/block"] = {{
             block: {{
                 get height() {{
                     if (!globalThis.__tanaCore) {{
@@ -976,7 +976,7 @@ async fn main() {
         }};
 
         // tx module - transaction staging and execution
-        tanaModules["tana:tx"] = {{
+        tanaModules["tana/tx"] = {{
             tx: {{
                 transfer(from, to, amount, currency) {{
                     if (!globalThis.__tanaCore) {{
@@ -1041,7 +1041,7 @@ async fn main() {
     let user_ts = fs::read_to_string("example.ts")
         .expect("missing example.ts");
 
-    // 6) transpile+run user TS, but rewrite `import ... from "tana:*"`
+    // 6) transpile+run user TS, but rewrite `import ... from "tana/*"`
     //    into calls to __tanaImport so we don't need Rust ModuleLoader.
     let runner = format!(
         r#"
@@ -1051,7 +1051,7 @@ async fn main() {
         src = src
           .split("\n")
           .map((line) => {{
-            const m = line.match(/^\s*import\s+{{([^}}]+)}}\s+from\s+["'](tana:[^"']+)["'];?\s*$/);
+            const m = line.match(/^\s*import\s+{{([^}}]+)}}\s+from\s+["'](tana\/[^"']+)["'];?\s*$/);
             if (!m) return line;
             const names = m[1].trim();
             const spec = m[2].trim();

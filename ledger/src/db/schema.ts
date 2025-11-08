@@ -4,7 +4,7 @@
  * Core tables for users, teams, channels, balances, and transactions
  */
 
-import { pgTable, text, timestamp, jsonb, decimal, boolean, uuid, varchar, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, jsonb, decimal, boolean, uuid, varchar, pgEnum, bigint } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // ============================================================================
@@ -14,7 +14,7 @@ import { relations } from 'drizzle-orm'
 export const currencyTypeEnum = pgEnum('currency_type', ['fiat', 'crypto'])
 export const teamRoleEnum = pgEnum('team_role', ['owner', 'admin', 'member'])
 export const channelVisibilityEnum = pgEnum('channel_visibility', ['public', 'private', 'team'])
-export const transactionTypeEnum = pgEnum('transaction_type', ['transfer', 'deposit', 'withdraw', 'contract_call'])
+export const transactionTypeEnum = pgEnum('transaction_type', ['transfer', 'deposit', 'withdraw', 'contract_call', 'user_creation', 'contract_deployment'])
 export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'confirmed', 'failed'])
 
 // ============================================================================
@@ -151,9 +151,9 @@ export const transactions = pgTable('transactions', {
   from: uuid('from').notNull(), // User or Team ID
   to: uuid('to').notNull(), // User or Team ID
 
-  // Amount
-  amount: decimal('amount', { precision: 20, scale: 8 }).notNull(),
-  currencyCode: varchar('currency_code', { length: 10 }).notNull().references(() => currencies.code),
+  // Amount (optional - only for transfer/deposit/withdraw types)
+  amount: decimal('amount', { precision: 20, scale: 8 }),
+  currencyCode: varchar('currency_code', { length: 10 }).references(() => currencies.code),
 
   // Type
   type: transactionTypeEnum('type').notNull(),
@@ -167,11 +167,77 @@ export const transactions = pgTable('transactions', {
 
   // Status
   status: transactionStatusEnum('status').notNull().default('pending'),
-  blockId: uuid('block_id'), // Block inclusion (future)
+  blockHeight: bigint('block_height', { mode: 'number' }), // Block inclusion
 
   // Timestamps
   createdAt: timestamp('created_at').notNull().defaultNow(),
   confirmedAt: timestamp('confirmed_at'),
+})
+
+// ============================================================================
+// BLOCKS
+// ============================================================================
+
+export const blocks = pgTable('blocks', {
+  // Block identification
+  height: bigint('height', { mode: 'number' }).primaryKey(), // 0 for genesis, then 1, 2, 3...
+  hash: varchar('hash', { length: 64 }).notNull().unique(), // SHA256 of block contents
+  previousHash: varchar('previous_hash', { length: 64 }).notNull(), // Hash of previous block (0x00... for genesis)
+
+  // Block metadata
+  timestamp: timestamp('timestamp').notNull(), // Block creation time
+  producer: uuid('producer').notNull(), // Node/user that produced this block
+
+  // Block contents
+  txCount: decimal('tx_count', { precision: 10 }).notNull().default('0'), // Number of transactions
+  stateRoot: varchar('state_root', { length: 64 }).notNull(), // Merkle root of state after this block
+  txRoot: varchar('tx_root', { length: 64 }), // Merkle root of transactions (optional)
+
+  // Execution
+  gasUsed: bigint('gas_used', { mode: 'number' }).notNull().default(0), // Total gas consumed in block
+  gasLimit: bigint('gas_limit', { mode: 'number' }).notNull(), // Maximum gas allowed
+
+  // Additional data
+  metadata: jsonb('metadata'), // Extra data (contracts executed, etc.)
+  signature: text('signature').notNull(), // Producer's signature
+
+  // Timestamps
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  finalizedAt: timestamp('finalized_at'), // When block became final
+})
+
+// ============================================================================
+// CONTRACTS
+// ============================================================================
+
+export const contracts = pgTable('contracts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Owner and naming
+  ownerId: uuid('owner_id').notNull().references(() => users.id), // Who deployed it
+  name: varchar('name', { length: 100 }).notNull(), // Contract name
+
+  // Source code
+  sourceCode: text('source_code').notNull(), // Original TypeScript source
+
+  // Version and state
+  version: varchar('version', { length: 20 }).notNull().default('1.0.0'),
+  isActive: boolean('is_active').notNull().default(true),
+
+  // Deployment info
+  deployedInBlock: bigint('deployed_in_block', { mode: 'number' }).notNull(),
+  deploymentTxId: uuid('deployment_tx_id').notNull(),
+
+  // Metadata
+  description: text('description'),
+  metadata: jsonb('metadata'), // Tags, documentation, etc.
+
+  // Code hash for verification
+  codeHash: varchar('code_hash', { length: 64 }).notNull(),
+
+  // Timestamps
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
 // ============================================================================

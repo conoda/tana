@@ -21,6 +21,42 @@ bun scripts/run-contract.ts examples/batch-query.ts
 
 ---
 
+## Test Files (Sanity Checks)
+
+### `test-suite.ts` ⭐ **Recommended**
+Comprehensive test suite with 20+ tests covering all major operations.
+
+**Run:**
+```bash
+bun scripts/run-contract.ts examples/test-suite.ts
+```
+
+**What it tests:**
+- User lookup (single & batch)
+- Balance queries (single & batch)
+- Query limit enforcement (max 10)
+- Transfer execution & validation
+- Invalid operations (self-transfer, negative/zero amounts)
+- Block context availability
+
+**Use this for quick sanity checks after making changes!**
+
+### `alice-to-bob.ts`
+Simple transfer test between two users with balance verification.
+
+**Run:**
+```bash
+bun scripts/run-contract.ts examples/alice-to-bob.ts
+```
+
+**What it tests:**
+- User lookup by username
+- Balance queries before/after
+- Simple transfer execution
+- Expected balance calculations
+
+---
+
 ## Example Contracts
 
 ### `default.ts`

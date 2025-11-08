@@ -5,8 +5,10 @@
  */
 
 import { eq } from 'drizzle-orm'
-import { db, users } from '../db'
-import { createHash } from 'crypto'
+import { db, users, transactions } from '../db'
+import { createHash, randomUUID } from 'crypto'
+
+const SYSTEM_ID = '00000000-0000-0000-0000-000000000000'
 
 export interface CreateUserInput {
   publicKey: string
@@ -24,7 +26,12 @@ export interface UpdateUserInput {
 }
 
 /**
- * Create a new user account
+ * Create a new user account (transaction-based)
+ *
+ * This creates a pending user_creation transaction that will be
+ * executed when the next block is produced.
+ *
+ * Returns the transaction ID and the pre-generated user ID.
  */
 export async function createUser(input: CreateUserInput) {
   // Validate username format (@alice)
@@ -32,25 +39,66 @@ export async function createUser(input: CreateUserInput) {
     throw new Error('Username must start with @')
   }
 
-  // Calculate initial state hash
-  const stateHash = calculateStateHash({
-    publicKey: input.publicKey,
-    username: input.username,
-  })
+  // Check if username already exists or is pending
+  const existingUser = await getUserByUsername(input.username)
+  if (existingUser) {
+    throw new Error(`Username ${input.username} is already taken`)
+  }
 
-  const [user] = await db
-    .insert(users)
-    .values({
-      publicKey: input.publicKey,
+  // Check for pending user_creation transactions with same username
+  const pendingTx = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.type, 'user_creation'))
+    .where(eq(transactions.status, 'pending'))
+
+  for (const tx of pendingTx) {
+    const userData = tx.contractInput as any
+    if (userData?.username === input.username) {
+      throw new Error(`Username ${input.username} has a pending registration`)
+    }
+  }
+
+  // Generate user ID upfront (will be used when block is produced)
+  const userId = randomUUID()
+
+  // Create signature (simplified - in production this would be a real Ed25519 signature)
+  const signature = createHash('sha256')
+    .update(JSON.stringify({
+      type: 'user_creation',
       username: input.username,
-      displayName: input.displayName,
-      bio: input.bio,
-      avatarData: input.avatarData,
-      stateHash,
+      publicKey: input.publicKey,
+      timestamp: Date.now()
+    }))
+    .digest('hex')
+
+  // Create user_creation transaction
+  const [transaction] = await db
+    .insert(transactions)
+    .values({
+      type: 'user_creation',
+      from: SYSTEM_ID, // System creates users
+      to: userId, // The new user's pre-generated ID
+      amount: null,
+      currencyCode: null,
+      contractInput: {
+        username: input.username,
+        displayName: input.displayName,
+        publicKey: input.publicKey,
+        bio: input.bio,
+        avatarData: input.avatarData,
+      },
+      signature,
+      status: 'pending'
     })
     .returning()
 
-  return user
+  return {
+    transactionId: transaction.id,
+    userId,
+    status: 'pending',
+    message: 'User creation transaction created. User will be created when the next block is produced.'
+  }
 }
 
 /**

@@ -145,7 +145,7 @@ function whitelistedFetch(url: string, options?: RequestInit) {
 
 // Create tana modules
 const tanaModules = {
-  'tana:core': {
+  'tana/core': {
     console: {
       log(...args: any[]) {
         const msg = args.map(v => {
@@ -174,13 +174,13 @@ const tanaModules = {
       v8: '134.5.0'
     }
   },
-  'tana:utils': {
+  'tana/utils': {
     fetch: whitelistedFetch
   },
-  'tana:block': {
+  'tana/block': {
     block: mockBlock
   },
-  'tana:tx': {
+  'tana/tx': {
     tx: {
       _changes: [] as any[],
 
@@ -258,7 +258,7 @@ const tanaModules = {
       }
     }
   },
-  'tana:data': {
+  'tana/data': {
     data: {
       MAX_KEY_SIZE: 256,
       MAX_VALUE_SIZE: 10240,
@@ -376,7 +376,9 @@ const tanaModules = {
 // Import resolver
 function createTanaImport() {
   return function __tanaImport(spec: string) {
-    const mod = (tanaModules as any)[spec];
+    // Convert tana: to tana/ for module lookup
+    const normalizedSpec = spec.replace('tana:', 'tana/');
+    const mod = (tanaModules as any)[normalizedSpec];
     if (!mod) throw new Error(`Unknown module: ${spec}`);
     return mod;
   };

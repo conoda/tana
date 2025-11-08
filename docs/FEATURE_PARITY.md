@@ -4,7 +4,7 @@ The Tana Playground must provide the **same developer experience** as the Rust C
 
 ## Goal
 
-Code written in the playground should work identically when run via `cargo run`, and vice versa.
+Code written in the playground should work identically when run via `cargo run`, and vice versa. The exception being the playground is read-only operations. in the future, there will be a button that provides users a way to deploy playground code to the sandbox network to do real testing.
 
 ## Current State
 
@@ -180,22 +180,6 @@ For each new feature, test:
 - [ ] Type definitions match implementation
 - [ ] Monaco provides correct autocomplete
 
-### Example Test Case
-
-**Test file:** `examples/blockchain-test.ts`
-```typescript
-import { console } from 'tana:core'
-import { createTransaction } from 'tana:blockchain'
-
-const txId = await createTransaction('alice', 'bob', 100)
-console.log('Transaction created:', txId)
-```
-
-**Expected behavior:**
-- CLI: Creates real transaction, prints actual TX ID
-- Playground: Simulates transaction, prints mock TX ID
-- Both: Same TypeScript code, same console output format
-
 ## Fetch: ✅ PARITY ACHIEVED
 
 **Status:** `fetch` now works in BOTH Rust runtime and playground!
@@ -271,15 +255,6 @@ async fn op_fetch(#[string] url: String) -> Result<String, deno_error::JsErrorBo
 - ✅ BigInt serialization in data storage
 - ✅ Same TypeScript code runs in CLI and playground
 - ✅ Same error messages for size limits and validation
-
-Test both environments with:
-```bash
-# CLI
-cargo run
-
-# Playground
-cd playground && npm run dev
-```
 
 ## Checklist for New Features
 

@@ -10,3 +10,7 @@ declare module "tana:core" {
     v8: string;
   };
 }
+
+declare module "tana/core" {
+  export * from "tana:core";
+}

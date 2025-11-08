@@ -157,3 +157,7 @@ declare module "tana:data" {
     commit(): Promise<void>;
   };
 }
+
+declare module "tana/data" {
+  export * from "tana:data";
+}

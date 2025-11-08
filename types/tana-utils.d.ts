@@ -14,7 +14,7 @@ declare module "tana:utils" {
    *
    * @example
    * ```typescript
-   * import { fetch } from 'tana:utils'
+   * import { fetch } from 'tana/utils'
    *
    * const response = await fetch('https://pokeapi.co/api/v2/pokemon/pikachu')
    * const data = await response.json()
@@ -25,4 +25,8 @@ declare module "tana:utils" {
     url: string | URL,
     options?: RequestInit
   ): Promise<Response>;
+}
+
+declare module "tana/utils" {
+  export * from "tana:utils";
 }

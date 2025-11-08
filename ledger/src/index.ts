@@ -13,6 +13,8 @@ import { prettyJSON } from 'hono/pretty-json'
 import usersRoutes from './api/routes/users'
 import balancesRoutes from './api/routes/balances'
 import transactionsRoutes from './api/routes/transactions'
+import blocksRoutes from './api/routes/blocks'
+import contractsRoutes from './api/routes/contracts'
 
 const app = new Hono()
 
@@ -23,7 +25,8 @@ const app = new Hono()
 app.use('*', logger())
 app.use('*', prettyJSON())
 app.use('*', cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
+  origin: '*',  // Allow all origins in development
+  credentials: true,
 }))
 
 // ============================================================================
@@ -50,6 +53,8 @@ app.get('/health', (c) => {
 app.route('/users', usersRoutes)
 app.route('/balances', balancesRoutes)
 app.route('/transactions', transactionsRoutes)
+app.route('/blocks', blocksRoutes)
+app.route('/contracts', contractsRoutes)
 
 // ============================================================================
 // ERROR HANDLING

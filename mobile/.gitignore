@@ -1,0 +1,14 @@
+# Node modules and Expo build outputs
+node_modules/
+.expo/
+dist/
+.expo-shared/
+web-build/
+
+# Native directories created by prebuild/eject
+android/
+ios/
+
+# Misc
+.DS_Store
+*.log

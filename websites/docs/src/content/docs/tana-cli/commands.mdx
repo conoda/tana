@@ -1,0 +1,461 @@
+---
+title: Commands
+description: Complete reference for all Tana CLI commands
+sidebar:
+  order: 2
+---
+
+Complete reference for the Tana command-line interface.
+
+## Service Management
+
+### start
+
+Start the ledger service.
+
+```bash
+tana start
+```
+
+**Options:**
+- `-c, --chain <name>` - Specific chain to start (default: local)
+
+**Examples:**
+
+```bash
+tana start
+```
+
+```bash
+tana start --chain my-chain
+```
+
+**Output:**
+```
+🚀 Starting Tana...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Starting Ledger Service...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Ledger service started
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Service Running:
+  URL:     http://localhost:8080
+  Chain:   local
+  PID:     12345
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Press Ctrl+C to stop
+```
+
+### stop
+
+Stop all running services.
+
+```bash
+tana stop
+```
+
+**Output:**
+```
+Stopping services...
+✓ Ledger service stopped
+```
+
+### status
+
+Show status of running services and chains.
+
+```bash
+tana status
+```
+
+**Output:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tana Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Services:
+  ✓ Ledger running on http://localhost:8080
+
+Chains:
+  • local (default)
+    Genesis: 0x1a2b3c...
+
+Users:
+  • @alice (Alice Johnson)
+  • @bob (Bob Smith)
+
+Default Chain: local
+Default User: @alice
+```
+
+## Creation
+
+### new chain
+
+Create a new blockchain (you become the genesis leader).
+
+```bash
+tana new chain <name>
+```
+
+**Arguments:**
+- `<name>` - Chain name
+
+**Examples:**
+
+```bash
+tana new chain my-chain
+```
+
+```bash
+tana new chain testnet
+```
+
+**Output:**
+```
+Creating new blockchain: my-chain
+
+✓ Genesis block created
+✓ Chain config saved to ~/.config/tana/chains/my-chain.json
+✓ Set as default chain
+
+Chain ID: my-chain
+Genesis Hash: 0x1a2b3c4d5e6f7890...
+```
+
+### new node
+
+Create a new node to join an existing chain.
+
+```bash
+tana new node
+```
+
+**Options:**
+- `--connect <url>` - Chain URL to connect to
+
+**Examples:**
+```bash
+tana new node --connect https://chain.example.com
+```
+
+**Output:**
+```
+Connecting to chain at https://chain.example.com...
+
+✓ Chain validated
+✓ Node config saved to ~/.config/tana/nodes/node-xyz.json
+
+Node ID: node-xyz
+Chain: mainnet
+Ready to start syncing
+```
+
+### new user
+
+Create a new user account locally.
+
+```bash
+tana new user <username>
+```
+
+**Arguments:**
+- `<username>` - Username (must start with @)
+
+**Options:**
+- `-n, --name <name>` - Display name
+- `-b, --bio <bio>` - User bio
+
+**Examples:**
+
+```bash
+tana new user @alice --name "Alice Johnson"
+```
+
+```bash
+tana new user @bob --name "Bob Smith" --bio "Developer"
+```
+
+**Output:**
+```
+Creating user: @alice
+
+✓ Keypair generated
+✓ User config saved to ~/.config/tana/users/@alice.json
+
+Username: @alice
+Display Name: Alice Johnson
+Public Key: ed25519_abc123...
+
+⚠ User created locally. Run 'tana deploy user @alice' to add to blockchain.
+```
+
+### new contract
+
+Scaffold a new smart contract.
+
+```bash
+tana new contract [name]
+```
+
+**Arguments:**
+- `[name]` - Contract name (optional)
+
+**Examples:**
+
+```bash
+tana new contract
+```
+
+```bash
+tana new contract token-transfer
+```
+
+**Output:**
+```
+Creating smart contract...
+
+✓ Created contract.ts
+✓ Created contract.json
+
+Contract template includes:
+  • tana:core (console, version)
+  • tana:data (key-value storage)
+  • tana:block (blockchain queries)
+  • tana:tx (transaction staging)
+```
+
+## Deployment
+
+### deploy user
+
+Deploy user account to blockchain.
+
+```bash
+tana deploy user <username>
+```
+
+**Arguments:**
+- `<username>` - Username to deploy
+
+**Options:**
+- `-t, --target <url>` - Target chain URL
+
+**Examples:**
+
+```bash
+tana deploy user @alice
+```
+
+```bash
+tana deploy user @alice --target https://chain.example.com
+```
+
+**Output:**
+```
+Deploying user @alice to blockchain...
+
+✓ Transaction created
+✓ Transaction submitted
+⏳ Waiting for block confirmation...
+✓ User deployed successfully
+
+User ID: usr_1a2b3c4d5e6f
+Transaction ID: tx_7g8h9i0j1k2l
+Block: #42
+```
+
+### deploy contract
+
+Deploy smart contract to blockchain.
+
+```bash
+tana deploy contract <path>
+```
+
+**Arguments:**
+- `<path>` - Path to contract file
+
+**Options:**
+- `-t, --target <url>` - Target chain URL
+
+**Examples:**
+
+```bash
+tana deploy contract ./contract.ts
+```
+
+```bash
+tana deploy contract ./token.ts --target https://chain.example.com
+```
+
+**Output:**
+```
+Deploying contract: ./contract.ts
+
+✓ Contract validated
+✓ Transaction created
+✓ Transaction submitted
+⏳ Waiting for block confirmation...
+✓ Contract deployed successfully
+
+Contract ID: cnt_xyz789
+Transaction ID: tx_abc123
+Block: #43
+Contract Address: @alice/token-transfer
+```
+
+## Blockchain Operations
+
+### run
+
+Test run a contract locally.
+
+```bash
+tana run <contract>
+```
+
+**Arguments:**
+- `<contract>` - Path to contract file
+
+**Examples:**
+
+```bash
+tana run examples/alice-to-bob.ts
+```
+
+```bash
+tana run ./my-contract.ts
+```
+
+**Output:**
+```
+Running contract: examples/alice-to-bob.ts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Contract Output:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Transferring 100 USD from @alice to @bob
+✓ Balance checked
+✓ Transaction staged
+✓ Transfer complete
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Execution Summary:
+  Status: Success
+  Runtime: 45ms
+  Gas Used: 0.002
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### balance
+
+Check user balance.
+
+```bash
+tana balance <user>
+```
+
+**Arguments:**
+- `<user>` - Username or user ID
+
+**Options:**
+- `-c, --currency <code>` - Currency code (default: USD)
+
+**Examples:**
+
+```bash
+tana balance @alice
+```
+
+```bash
+tana balance @alice --currency ETH
+```
+
+**Output:**
+```
+Balances for @alice:
+
+  USD    1,000.50
+  ETH    2.5
+  BTC    0.01
+
+Total currencies: 3
+```
+
+### transfer
+
+Transfer funds between users.
+
+```bash
+tana transfer <from> <to> <amount> <currency>
+```
+
+**Arguments:**
+- `<from>` - Sender username
+- `<to>` - Recipient username
+- `<amount>` - Amount to transfer
+- `<currency>` - Currency code
+
+**Examples:**
+
+```bash
+tana transfer @alice @bob 100 USD
+```
+
+```bash
+tana transfer @alice @bob 0.5 ETH
+```
+
+**Output:**
+```
+Transferring 100 USD from @alice to @bob...
+
+✓ Balance verified
+✓ Transaction created
+✓ Transaction submitted
+⏳ Waiting for block confirmation...
+✓ Transfer complete
+
+Transaction ID: tx_1a2b3c4d
+Block: #44
+New Balances:
+  @alice: 900.50 USD
+  @bob: 100.00 USD
+```
+
+## System
+
+### check
+
+Validate system requirements and configuration.
+
+```bash
+tana check
+```
+
+**Output:**
+```
+Checking system requirements...
+
+✓ Bun installed (v1.0.25)
+✓ PostgreSQL running (v15.3)
+✓ Database connected
+✓ Rust toolchain available (v1.75.0)
+✓ Configuration valid
+
+System ready for Tana
+```
+
+## Global Options
+
+All commands support these options:
+
+- `--help` - Show help for a command
+- `--version` - Show version information

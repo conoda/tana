@@ -15,6 +15,8 @@ use deno_core::{Extension, JsRuntime, ModuleCodeString, RuntimeOptions};
 thread_local! {
     static OUTPUT: RefCell<Vec<String>> = RefCell::new(Vec::new());
     static ERRORS: RefCell<Vec<String>> = RefCell::new(Vec::new());
+    static GAS_USED: RefCell<u64> = RefCell::new(0);
+    static EXECUTION_SUCCESS: RefCell<bool> = RefCell::new(true);
 }
 
 #[op2(fast)]
@@ -36,6 +38,20 @@ fn op_sum(#[serde] nums: Vec<f64>) -> Result<f64, deno_error::JsErrorBox> {
     Ok(nums.iter().sum())
 }
 
+#[op2(fast)]
+fn op_track_gas(#[bigint] amount: u64) {
+    GAS_USED.with(|gas| {
+        *gas.borrow_mut() += amount;
+    });
+}
+
+#[op2(fast)]
+fn op_mark_failure() {
+    EXECUTION_SUCCESS.with(|success| {
+        *success.borrow_mut() = false;
+    });
+}
+
 #[wasm_bindgen]
 pub struct TanaRuntime {
     runtime: JsRuntime,
@@ -53,10 +69,18 @@ impl TanaRuntime {
         const OP_SUM: deno_core::OpDecl = op_sum();
         const OP_PRINT_STDOUT: deno_core::OpDecl = op_print_stdout();
         const OP_PRINT_STDERR: deno_core::OpDecl = op_print_stderr();
+        const OP_TRACK_GAS: deno_core::OpDecl = op_track_gas();
+        const OP_MARK_FAILURE: deno_core::OpDecl = op_mark_failure();
 
         let ext = Extension {
             name: "tana_ext",
-            ops: std::borrow::Cow::Borrowed(&[OP_SUM, OP_PRINT_STDOUT, OP_PRINT_STDERR]),
+            ops: std::borrow::Cow::Borrowed(&[
+                OP_SUM,
+                OP_PRINT_STDOUT,
+                OP_PRINT_STDERR,
+                OP_TRACK_GAS,
+                OP_MARK_FAILURE
+            ]),
             ..Default::default()
         };
 
@@ -100,7 +124,7 @@ impl TanaRuntime {
             const tanaModules = Object.create(null);
 
             // core module - browser-like console API
-            tanaModules["tana:core"] = {{
+            tanaModules["tana/core"] = {{
                 console: {{
                     log(...args) {{
                         if (globalThis.__tanaCore) {{
@@ -167,7 +191,7 @@ impl TanaRuntime {
             src = src
               .split("\n")
               .map((line) => {{
-                const m = line.match(/^\s*import\s+{{([^}}]+)}}\s+from\s+["'](tana:[^"']+)["'];?\s*$/);
+                const m = line.match(/^\s*import\s+{{([^}}]+)}}\s+from\s+["'](tana\/[^"']+)["'];?\s*$/);
                 if (!m) return line;
                 const names = m[1].trim();
                 const spec = m[2].trim();
@@ -202,5 +226,92 @@ impl TanaRuntime {
         };
 
         Ok(result)
+    }
+
+    #[wasm_bindgen]
+    pub fn execute_with_validity(&mut self, user_code: &str) -> Result<String, JsValue> {
+        // Clear previous state
+        OUTPUT.with(|o| o.borrow_mut().clear());
+        ERRORS.with(|e| e.borrow_mut().clear());
+        GAS_USED.with(|g| *g.borrow_mut() = 0);
+        EXECUTION_SUCCESS.with(|s| *s.borrow_mut() = true);
+
+        // Base gas for any execution
+        GAS_USED.with(|g| *g.borrow_mut() = 1000);
+
+        let runner = format!(
+            r#"
+            let src = {user_src};
+
+            // Track gas for operations
+            const trackGas = (amount) => {{
+                if (globalThis.__tanaCore) {{
+                    globalThis.__tanaCore.ops.op_track_gas(amount);
+                }}
+            }};
+
+            const markFailure = () => {{
+                if (globalThis.__tanaCore) {{
+                    globalThis.__tanaCore.ops.op_mark_failure();
+                }}
+            }};
+
+            try {{
+                // line-by-line import rewriter
+                src = src
+                  .split("\n")
+                  .map((line) => {{
+                    const m = line.match(/^\s*import\s+{{([^}}]+)}}\s+from\s+["'](tana\/[^"']+)["'];?\s*$/);
+                    if (!m) return line;
+                    const names = m[1].trim();
+                    const spec = m[2].trim();
+                    return "const {{" + names + "}} = __tanaImport('" + spec + "');";
+                  }})
+                  .join("\n");
+
+                trackGas(500); // Gas for transpilation
+
+                const out = ts.transpileModule(src, {{
+                  compilerOptions: {{
+                    target: "ES2020",
+                    module: ts.ModuleKind.ESNext
+                  }}
+                }});
+
+                trackGas(1000); // Gas for eval
+                (0, eval)(out.outputText);
+
+            }} catch (error) {{
+                markFailure();
+                globalThis.__tanaCore.ops.op_print_stderr(
+                    "Execution error: " + error.message
+                );
+            }}
+            "#,
+            user_src = serde_json::to_string(user_code).unwrap(),
+        );
+
+        self.runtime
+            .execute_script("run-user.ts", ModuleCodeString::from(runner))
+            .map_err(|e| {
+                EXECUTION_SUCCESS.with(|s| *s.borrow_mut() = false);
+                JsValue::from_str(&format!("Execution error: {:?}", e))
+            })?;
+
+        // Collect results
+        let stdout = OUTPUT.with(|o| o.borrow().join(""));
+        let stderr = ERRORS.with(|e| e.borrow().join(""));
+        let gas_used = GAS_USED.with(|g| *g.borrow());
+        let success = EXECUTION_SUCCESS.with(|s| *s.borrow());
+
+        // Return JSON result
+        let result = serde_json::json!({
+            "success": success,
+            "gas_used": gas_used,
+            "output": stdout,
+            "error": if stderr.is_empty() { None } else { Some(stderr) }
+        });
+
+        Ok(result.to_string())
     }
 }

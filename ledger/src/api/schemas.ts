@@ -67,9 +67,9 @@ export const createCurrencySchema = z.object({
 export const createTransactionSchema = z.object({
   from: z.string().uuid(),
   to: z.string().uuid(),
-  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid decimal number'),
-  currencyCode: z.string().min(1).max(10).toUpperCase(),
-  type: z.enum(['transfer', 'deposit', 'withdraw', 'contract_call']),
+  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid decimal number').optional(),
+  currencyCode: z.string().min(1).max(10).toUpperCase().optional(),
+  type: z.enum(['transfer', 'deposit', 'withdraw', 'contract_call', 'user_creation', 'contract_deployment']),
   signature: z.string().min(1),
   contractId: z.string().uuid().optional(),
   contractInput: z.record(z.any()).optional(),

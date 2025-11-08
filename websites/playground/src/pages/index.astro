@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Editor from '../components/Editor.svelte';
+import '../styles/global.css';
+
+export const prerender = true;  // prerender playground as static
+---
+
+<BaseLayout>
+  <Editor client:only="svelte" />
+</BaseLayout>

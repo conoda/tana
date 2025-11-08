@@ -4,10 +4,10 @@
 //
 // copyright (c) 2025 sami fouad http://samifou.ad
 //
-import { console, version } from 'tana:core'
-import { block } from 'tana:block'
-import { tx } from 'tana:tx'
-import { data } from 'tana:data'
+import { console, version } from 'tana/core'
+import { block } from 'tana/block'
+import { tx } from 'tana/tx'
+import { data } from 'tana/data'
 
 console.log("hello. this is the tana playground.")
 console.log("tana's core is a blockchain written in rust.")

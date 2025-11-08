@@ -6,6 +6,10 @@ runtime/target
 node_modules/
 */node_modules/
 .env
+.env.local
+.env.*.local
+**/.env
+!.env.example
 *.log
 
 # Dependencies

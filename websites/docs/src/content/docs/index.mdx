@@ -1,0 +1,131 @@
+---
+title: Tana Documentation
+description: A blockchain with smart contracts written in TypeScript
+template: splash
+hero:
+  tagline: User-owned blockchain with TypeScript smart contracts. No native token required.
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Quick Start
+      link: /guides/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/conoda/tana
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is Tana?
+
+Tana is a blockchain platform designed to be **user-owned and operated**. Anyone can start their own blockchain or join existing networks as a validator node. Smart contracts are written in familiar **TypeScript** and executed in a sandboxed V8 environment.
+
+## Key Features
+
+<CardGrid>
+  <Card title="TypeScript Contracts" icon="seti:typescript">
+    Write smart contracts in TypeScript - no new language to learn. Full type safety and familiar tooling.
+  </Card>
+
+  <Card title="Multi-Currency Support" icon="puzzle">
+    No native token required. Create and manage any currency directly in your contracts.
+  </Card>
+
+  <Card title="CLI-First Design" icon="laptop">
+    Everything controllable from the terminal. Deploy, manage, and monitor your blockchain from the command line.
+  </Card>
+
+  <Card title="Decentralized Nodes" icon="setting">
+    Start your own chain or join existing networks. Full validator node capabilities.
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```typescript
+import { console } from 'tana/core'
+import { data } from 'tana/data'
+
+// Simple counter contract
+const current = await data.get('counter')
+const count = current ? parseInt(current) : 0
+
+await data.set('counter', String(count + 1))
+await data.commit()
+
+console.log('Counter:', count + 1)
+```
+
+## For Users
+
+<CardGrid>
+  <Card title="Quick Start" icon="rocket">
+    Install Tana and start using the blockchain.
+
+    [Get Started →](/guides/quickstart/)
+  </Card>
+
+  <Card title="CLI Reference" icon="laptop">
+    Complete command reference for the Tana CLI.
+
+    [View Commands →](/tana-cli/intro/)
+  </Card>
+
+  <Card title="API Reference" icon="open-book">
+    REST API documentation for the ledger service.
+
+    [View API →](/tana-api/intro/)
+  </Card>
+</CardGrid>
+
+## For Contributors
+
+<CardGrid>
+  <Card title="Development Setup" icon="setting">
+    Build Tana from source and set up your dev environment.
+
+    [Get Started →](/contributing/setup/)
+  </Card>
+
+  <Card title="System Architecture" icon="puzzle">
+    Learn how Tana's components work together internally.
+
+    [Learn More →](/contributing/architecture/)
+  </Card>
+
+  <Card title="Core Concepts" icon="document">
+    Deep dive into data models, blocks, and system flows.
+
+    [Technical Docs →](/contributing/core/data-model/)
+  </Card>
+</CardGrid>
+
+## Architecture Overview
+
+Tana consists of **two compiled binaries** and integrated services:
+
+- **`tana` CLI** - Main user interface built with TypeScript/Bun
+- **`tana-runtime`** - Rust-based V8 execution engine for contracts
+- **Ledger Service** - Integrated blockchain state management
+
+All orchestrated through a simple, powerful CLI:
+
+```bash
+# Create a new blockchain
+tana new chain my-chain
+
+# Start your chain
+tana start
+
+# Deploy a smart contract
+tana deploy contract ./my-contract.ts
+```
+
+---
+
+**Status:** Early development - Not production ready
+
+Built with Rust (deno_core), TypeScript, Bun, PostgreSQL, and Astro.

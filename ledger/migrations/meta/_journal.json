@@ -8,6 +8,20 @@
       "when": 1762115390546,
       "tag": "0000_busy_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1762295031287,
+      "tag": "0001_simple_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1762296309442,
+      "tag": "0002_crazy_fenris",
+      "breakpoints": true
     }
   ]
 }

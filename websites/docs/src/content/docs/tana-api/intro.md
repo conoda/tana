@@ -1,0 +1,254 @@
+---
+title: API Overview
+description: REST API reference for the Tana Ledger Service
+sidebar:
+  order: 1
+---
+
+The Tana Ledger Service provides a RESTful API for interacting with the blockchain. All endpoints return JSON responses.
+
+## Base URL
+
+```
+http://localhost:8080
+```
+
+For production deployments, replace with your server's URL.
+
+## Authentication & Signatures
+
+:::caution[Security Notice]
+**Transaction signing is NOT yet implemented.** The API currently accepts requests without signature verification. Do not use with real assets.
+:::
+
+### Transaction Signatures (Required in Production)
+
+All state-changing operations (POST, PATCH, DELETE) **require cryptographic signatures** to prove ownership. While not currently enforced, the API is designed to verify Ed25519 signatures on all transactions.
+
+**Required Fields:**
+
+```json
+{
+  "ownerId": "usr_abc123",
+  "...": "transaction data",
+  "signature": "0x1a2b3c4d5e6f...",  // Ed25519 signature (required)
+  "timestamp": 1699459200,            // Unix timestamp (required)
+  "nonce": 42                         // Replay protection (required)
+}
+```
+
+**How Signing Works:**
+
+```typescript
+// 1. Create transaction payload
+const payload = {
+  ownerId: "usr_abc123",
+  amount: "100",
+  currencyCode: "USD",
+  timestamp: Date.now(),
+  nonce: 42
+}
+
+// 2. Hash the payload
+const hash = sha256(JSON.stringify(payload))
+
+// 3. Sign with private key
+const signature = ed25519.sign(hash, privateKey)
+
+// 4. Send to API
+POST /transactions {
+  ...payload,
+  signature: "0x..."
+}
+```
+
+**Server Verification:**
+
+The API will verify:
+1. Signature is valid for the given payload
+2. Signature matches the public key on file for `ownerId`
+3. Timestamp is within acceptable range (prevents old transactions)
+4. Nonce hasn't been used before (prevents replay attacks)
+
+**Implementation Status:**
+- ❌ CLI signing - Not implemented
+- ❌ API verification - Not implemented
+- ❌ Ed25519 keypairs - Using placeholders
+- ⚠️ **All endpoints currently accept unsigned requests**
+
+See the [README Security Status](https://github.com/conoda/tana#security-status) for implementation roadmap.
+
+## Response Format
+
+All API responses follow this format:
+
+### Success Response
+
+```json
+{
+  "data": { ... },
+  "status": "success"
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": "Error message describing what went wrong",
+  "timestamp": "2024-11-07T00:00:00.000Z"
+}
+```
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success - Request completed successfully |
+| `201` | Created - Resource created successfully |
+| `400` | Bad Request - Invalid request parameters |
+| `404` | Not Found - Resource doesn't exist |
+| `500` | Internal Server Error - Something went wrong on the server |
+
+## Quick Start
+
+### Health Check
+
+```bash
+curl http://localhost:8080/health
+```
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### Get Service Info
+
+```bash
+curl http://localhost:8080/
+```
+
+```json
+{
+  "service": "tana-ledger",
+  "version": "0.1.0",
+  "status": "healthy",
+  "timestamp": "2024-11-07T00:00:00.000Z"
+}
+```
+
+## API Categories
+
+### Users
+Manage user accounts on the blockchain.
+
+- **POST /users** - Create a new user
+- **GET /users** - List all users
+- **GET /users/:id** - Get user by ID
+- **GET /users/by-username/:username** - Get user by username
+
+[View Users API →](/tana-api/users/)
+
+### Balances
+Query and manage multi-currency balances.
+
+- **GET /balances** - Query balances
+- **POST /balances** - Set balance
+- **GET /balances/currencies** - List supported currencies
+- **POST /balances/currencies/seed** - Seed default currencies
+
+[View Balances API →](/tana-api/balances/)
+
+### Transactions
+Create and query blockchain transactions.
+
+- **POST /transactions** - Create transaction
+- **GET /transactions** - List transactions
+- **GET /transactions/:id** - Get transaction by ID
+
+[View Transactions API →](/tana-api/transactions/)
+
+### Blocks
+Query blockchain blocks and history.
+
+- **GET /blocks** - List blocks
+- **GET /blocks/latest** - Get latest block
+- **GET /blocks/:height** - Get block by height
+
+[View Blocks API →](/tana-api/blocks/)
+
+### Contracts
+Deploy and manage smart contracts.
+
+- **POST /contracts** - Deploy contract
+- **GET /contracts** - List contracts
+- **GET /contracts/:id** - Get contract by ID
+
+[View Contracts API →](/tana-api/contracts/)
+
+## Rate Limiting
+
+Currently, there are no rate limits on the development API. Production deployments should implement rate limiting at the reverse proxy level (e.g., Nginx).
+
+## CORS
+
+The API supports CORS for all origins in development mode:
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+```
+
+## Pagination
+
+List endpoints support pagination via query parameters:
+
+```bash
+GET /users?page=1&limit=20
+```
+
+Default limit is 100 items per page.
+
+## Examples
+
+### Create User and Check Balance
+
+```bash
+# 1. Create user
+curl -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "publicKey": "ed25519_abc123...",
+    "username": "@alice",
+    "displayName": "Alice Johnson"
+  }'
+
+# Response:
+# {
+#   "userId": "user_xyz789",
+#   "transactionId": "tx_abc123",
+#   "status": "pending"
+# }
+
+# 2. Get balance (after block inclusion)
+curl "http://localhost:8080/balances?ownerId=user_xyz789&currencyCode=USD"
+
+# Response:
+# {
+#   "ownerId": "user_xyz789",
+#   "ownerType": "user",
+#   "currencyCode": "USD",
+#   "amount": "1000.00",
+#   "updatedAt": "2024-11-07T00:00:00.000Z"
+# }
+```
+
+## Next Steps
+
+- [Users API](/tana-api/users/) - User account management
+- [Balances API](/tana-api/balances/) - Balance queries and updates
+- [Transactions API](/tana-api/transactions/) - Transaction creation and queries
+- [Blocks API](/tana-api/blocks/) - Blockchain queries
+- [CLI Reference](/tana-cli/intro/) - Command-line interface

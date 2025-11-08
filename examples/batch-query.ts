@@ -45,5 +45,6 @@ try {
   await block.getUser(tooMany)
   console.log("✗ This should not happen!")
 } catch (error) {
-  console.log(`✓ Correctly rejected: ${error.message}`)
+  const message = error instanceof Error ? error.message : String(error)
+  console.log(`✓ Correctly rejected: ${message}`)
 }

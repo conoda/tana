@@ -14,7 +14,12 @@
     "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push:pg",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "blockchain:flush": "bun run src/scripts/flush-blockchain.ts",
+    "blockchain:genesis": "bun run src/scripts/create-genesis.ts",
+    "blockchain:produce": "bun run src/scripts/produce-block.ts",
+    "pending": "bun run src/scripts/produce-block.ts",
+    "block": "bun run src/scripts/produce-block.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.2.0",
